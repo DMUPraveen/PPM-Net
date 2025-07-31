@@ -1,0 +1,6 @@
+**/__pycache__/
+outputs/
+multirun/
+PP_out/
+PP_weight/
+.store

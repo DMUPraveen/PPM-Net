@@ -13,7 +13,7 @@ def loadparameter(case):
         lambda_vol = 0.3
         lambda_a = 6
 
-    elif case == 'urban':
+    elif case == 'urban' or 'urban_4' or 'urban_4_K_4':
         lr = 1e-3
         lambda_kl = 0.001
         lambda_sad = 4

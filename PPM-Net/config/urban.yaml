@@ -1,0 +1,7 @@
+lr: 1e-3
+kl: 0.001
+sad: 4
+vol: 7
+a: 0.0001
+dataset: urban_4
+

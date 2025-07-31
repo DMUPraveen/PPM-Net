@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.io as scio
+from scipy.io import loadmat
+import os
 
 def loadhsi(case):
     '''
@@ -67,6 +69,19 @@ def loadhsi(case):
     Y = Y.astype(np.float32)  # 数据类型转换
     A_true = A_true.astype(np.float32)
     return Y, A_true, P, M
+
+
+
+def load_my_hsi(dataset):
+    path = os.path.join("..","..","hsi_datasets",f"{dataset}.mat")
+    data = loadmat(path)
+    Y = data["Y"].astype(np.float32)
+    A = data["A"].astype(np.float32)
+    M = data["M"].astype(np.float32)
+    P = A.shape[0]
+    H,W = map(int,list(data["HW"].ravel()))
+
+    return Y,A,P,M,H,W
 
 if __name__=='__main__':
     cases = ['ex2','ridge']

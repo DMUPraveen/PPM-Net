@@ -13,8 +13,8 @@ def FCLSU(M, Y, sigma=1):
 
     P = M.shape[1]
     N = Y.shape[1]
-    M = sp.vstack((sigma * M, sp.ones((1, P)) ))  # 改变相关系数，将 NNLS 方法变成 FCLS
-    Y = sp.vstack((sigma * Y, sp.ones((1, N)) ))
+    M = np.vstack((sigma * M, np.ones((1, P)) ))  # 改变相关系数，将 NNLS 方法变成 FCLS
+    Y = np.vstack((sigma * Y, np.ones((1, N)) ))
     A_hat = np.zeros((P, N))
 
     for i in np.arange(N):

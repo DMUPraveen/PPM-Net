@@ -9,11 +9,15 @@ from time import time
 from tqdm import tqdm
 from model.pp_model import PP_Net
 from utils.hyperVca import hyperVca
-from utils.loadhsi import loadhsi
+from utils.loadhsi import loadhsi,load_my_hsi
 from utils.result_em import result_em
 from utils.FCLSU import FCLSU
 from utils.loadparameter import loadparameter
 from torch.utils.data import Dataset
+import utilities
+import hydra
+from omegaconf import DictConfig
+import math
 
 model_weights = './PP_weight/'
 output_path = './PP_out/'
@@ -43,12 +47,20 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         return self.train_db[idx], self.fcls_a_true[:, idx]
 
-def train(case, K = 10):
+def train(case, K,cfg:DictConfig):
+    print(cfg)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('training on', device)
 
-    Y, A_true, P, M = loadhsi(case)
-    lr, lambda_kl, lambda_sad, lambda_vol, lambda_a = loadparameter(case)
+    # Y, A_true, P, M = loadhsi(case)
+    Y,A_true,P,M,H,W = load_my_hsi(case)
+    print(f"{Y.shape=} {A_true.shape=} {P=} {M.shape=}")
+    # lr, lambda_kl, lambda_sad, lambda_vol, lambda_a = loadparameter(case)
+    lr = cfg.lr
+    lambda_kl = cfg.kl
+    lambda_sad = cfg.sad
+    lambda_vol = cfg.vol
+    lambda_a = cfg.a
 
     z_dim = 4
     Channel, N = Y.shape
@@ -137,20 +149,59 @@ def train(case, K = 10):
                                                    'Y_hat': y_hat.cpu().numpy()})
 
         armse_y, asad_y, armse_a, armse_em, asad_em = result_em(EM_hat, M, A_hat, A_true, Y, Y_hat)
+        EM_hat = np.mean(EM_hat, axis=2)
 
-        return armse_y, asad_y, armse_a, armse_em, asad_em, toc - tic
+        M_pred = EM_hat
+        A_pred = A_hat
+
+        A_pred,M_pred = utilities.correct_permuation(
+            A_pred = A_pred,
+            A_true=A_true,
+            M_pred = M_pred,
+            M_true = M
+        )
+        os.makedirs("outputs",exist_ok=True)
+        save_path = os.path.join("outputs",case)
+        os.makedirs(save_path,exist_ok=True)
+        utilities.plot_figures(
+            A_pred = A_pred,
+            A_true=A_true,
+            M_pred = M_pred,
+            M_true = M,
+            H = H,
+            save_path=save_path
+        ) 
+        results = utilities.calculate_errors(
+            A_pred = A_pred,
+            A_true=A_true,
+            M_pred = M_pred,
+            M_true = M,
+            save_path=save_path
+
+        )
+        print(f"{EM_hat.shape=},{A_hat.shape=},")
+
+        return armse_y, asad_y, armse_a, armse_em, asad_em, toc - tic,results
+
+@hydra.main(version_base=None,config_path='config',config_name='urban')
+def main(cfg:DictConfig):
+    K = 10
+    case = cfg.dataset
+    print(case)
+    armse_y, asad_y, armse_a, armse_em, asad_em, tim,results = train(case, K,cfg)
+    # print('*' * 70)
+    # print('time elapsed:', tim)
+    # print('RESULTS:')
+    # print('aRMSE_Y:', armse_y)
+    # print('aSAD_Y:', asad_y)
+    # print('aRMSE_a:', armse_a)
+    # print('aRMSE_M', armse_em)
+    # print('aSAD_em', asad_em)
+    result = results["total_rmse"].item()
+    if(math.isnan(result)):
+        return 100.0
+    return float(result)
+
 
 if __name__=='__main__':
-    cases = ['ex2', 'ridge', 'urban', 'houston', 'synthetic']  # 8.4
-    case = cases[0]
-    K = 10
-    armse_y, asad_y, armse_a, armse_em, asad_em, tim = train(case, K)
-
-    print('*' * 70)
-    print('time elapsed:', tim)
-    print('RESULTS:')
-    print('aRMSE_Y:', armse_y)
-    print('aSAD_Y:', asad_y)
-    print('aRMSE_a:', armse_a)
-    print('aRMSE_M', armse_em)
-    print('aSAD_em', asad_em)
+    main()
